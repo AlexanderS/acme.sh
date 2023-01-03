@@ -3678,12 +3678,6 @@ _regAccount() {
   if ! _calcjwk "$ACCOUNT_KEY_PATH"; then
     return 1
   fi
-  if [ "$_eab_id" ] && [ "$_eab_hmac_key" ]; then
-    _savecaconf CA_EAB_KEY_ID "$_eab_id"
-    _savecaconf CA_EAB_HMAC_KEY "$_eab_hmac_key"
-  fi
-  _eab_id=$(_readcaconf "CA_EAB_KEY_ID")
-  _eab_hmac_key=$(_readcaconf "CA_EAB_HMAC_KEY")
   _secure_debug3 _eab_id "$_eab_id"
   _secure_debug3 _eab_hmac_key "$_eab_hmac_key"
   _email="$(_getAccountEmail)"
@@ -3720,8 +3714,6 @@ _regAccount() {
         _err "Can not resolve _eab_hmac_key"
         return 1
       fi
-      _savecaconf CA_EAB_KEY_ID "$_eab_id"
-      _savecaconf CA_EAB_HMAC_KEY "$_eab_hmac_key"
     fi
   fi
   if [ "$_eab_id" ] && [ "$_eab_hmac_key" ]; then
