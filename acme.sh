@@ -1436,7 +1436,7 @@ toPkcs() {
 
   _isEcc="$3"
 
-  _initpath "$domain" "$_isEcc"
+  _initpath 1 "$domain" "$_isEcc"
 
   _toPkcs "$CERT_PFX_PATH" "$CERT_KEY_PATH" "$CERT_PATH" "$CA_CERT_PATH" "$pfxPassword"
 
@@ -1457,7 +1457,7 @@ toPkcs8() {
 
   _isEcc="$2"
 
-  _initpath "$domain" "$_isEcc"
+  _initpath 1 "$domain" "$_isEcc"
 
   ${ACME_OPENSSL_BIN:-openssl} pkcs8 -topk8 -inform PEM -outform PEM -nocrypt -in "$CERT_KEY_PATH" -out "$CERT_PKCS8_PATH"
 
@@ -1490,7 +1490,7 @@ _create_account_key() {
   fi
 
   _debug length "$length"
-  _initpath
+  _initpath 1
 
   mkdir -p "$CA_DIR"
   if [ -s "$ACCOUNT_KEY_PATH" ]; then
@@ -1525,7 +1525,7 @@ createDomainKey() {
     _cdl="$DEFAULT_DOMAIN_KEY_LENGTH"
   fi
 
-  _initpath "$domain" "$_cdl"
+  _initpath 1 "$domain" "$_cdl"
 
   if [ ! -f "$CERT_KEY_PATH" ] || [ ! -s "$CERT_KEY_PATH" ] || ([ "$FORCE" ] && ! [ "$_ACME_IS_RENEW" ]) || [ "$Le_ForceNewDomainKey" = "1" ]; then
     if _createkey "$_cdl" "$CERT_KEY_PATH"; then
@@ -1561,7 +1561,7 @@ createCSR() {
   domainlist="$2"
   _isEcc="$3"
 
-  _initpath "$domain" "$_isEcc"
+  _initpath 1 "$domain" "$_isEcc"
 
   if [ -f "$CSR_PATH" ] && [ "$_ACME_IS_RENEW" ] && [ -z "$FORCE" ]; then
     _info "CSR exists, skip"
@@ -2598,7 +2598,10 @@ _conapath() {
   sed "s#/\./#/#g"
 }
 
+#[create_dirs]
 __initHome() {
+  _createdirs="$1"
+
   if [ -z "$_SCRIPT_HOME" ]; then
     if _exists readlink && _exists dirname; then
       _debug "Lets find script dir."
@@ -2635,6 +2638,10 @@ __initHome() {
   fi
   _debug "Using config home:$LE_CONFIG_HOME"
   export LE_CONFIG_HOME
+
+  if [ -n "$_createdirs" ]; then
+    _createdirs
+  fi
 
   _DEFAULT_ACCOUNT_CONF_PATH="$LE_CONFIG_HOME/account.conf"
 
@@ -2735,12 +2742,13 @@ _clearCA() {
   export ACCOUNT_JSON_PATH=
 }
 
-#[domain]  [keylength or isEcc flag]
+#[createdirs]  [domain]  [keylength or isEcc flag]
 _initpath() {
-  domain="$1"
-  _ilength="$2"
+  _createdirs="$1"
+  domain="$2"
+  _ilength="$3"
 
-  __initHome
+  __initHome "$_createdirs"
 
   if [ -f "$ACCOUNT_CONF_PATH" ]; then
     . "$ACCOUNT_CONF_PATH"
@@ -2913,6 +2921,26 @@ _initpath() {
 
 }
 
+_createdirs() {
+  if [ ! -d "$LE_WORKING_DIR" ]; then
+    if ! mkdir -p "$LE_WORKING_DIR"; then
+      _err "Can not create working dir: $LE_WORKING_DIR"
+      return 1
+    fi
+
+    chmod 700 "$LE_WORKING_DIR"
+  fi
+
+  if [ ! -d "$LE_CONFIG_HOME" ]; then
+    if ! mkdir -p "$LE_CONFIG_HOME"; then
+      _err "Can not create config dir: $LE_CONFIG_HOME"
+      return 1
+    fi
+
+    chmod 700 "$LE_CONFIG_HOME"
+  fi
+}
+
 _exec() {
   if [ -z "$_EXEC_TEMP_ERR" ]; then
     _EXEC_TEMP_ERR="$(_mktemp)"
@@ -2982,7 +3010,7 @@ _restoreApache() {
   if [ -z "$usingApache" ]; then
     return 0
   fi
-  _initpath
+  _initpath 1
   if ! _apachePath; then
     return 1
   fi
@@ -3005,7 +3033,7 @@ _restoreApache() {
 }
 
 _setApache() {
-  _initpath
+  _initpath 1
   if ! _apachePath; then
     return 1
   fi
@@ -3659,7 +3687,7 @@ _getAccountEmail() {
 
 #keylength
 _regAccount() {
-  _initpath
+  _initpath 1
   _reg_length="$1"
   _eab_id="$2"
   _eab_hmac_key="$3"
@@ -4349,7 +4377,7 @@ issue() {
   _valid_to="${17}"
 
   if [ -z "$_ACME_IS_RENEW" ]; then
-    _initpath "$_main_domain" "$_key_length"
+    _initpath 1 "$_main_domain" "$_key_length"
     mkdir -p "$DOMAIN_PATH"
   elif ! _hasfield "$_web_roots" "$W_DNS"; then
     Le_OrderFinalize=""
@@ -5342,7 +5370,7 @@ renew() {
   _renewServer="$3"
   _debug "_renewServer" "$_renewServer"
 
-  _initpath "$Le_Domain" "$_isEcc"
+  _initpath 1 "$Le_Domain" "$_isEcc"
 
   _set_level=${NOTIFY_LEVEL:-$NOTIFY_LEVEL_DEFAULT}
   _info "$(__green "Renew: '$Le_Domain'")"
@@ -5384,7 +5412,7 @@ renew() {
 
   #reload ca configs
   _debug2 "initpath again."
-  _initpath "$Le_Domain" "$_isEcc"
+  _initpath 1 "$Le_Domain" "$_isEcc"
 
   if [ -z "$FORCE" ] && [ "$Le_NextRenewTime" ] && [ "$(_time)" -lt "$Le_NextRenewTime" ]; then
     _info "Skip, Next renewal time is: $(__green "$Le_NextRenewTimeStr")"
@@ -5444,7 +5472,7 @@ renew() {
 
 #renewAll  [stopRenewOnError] [server]
 renewAll() {
-  _initpath
+  _initpath 1
   _clearCA
   _stopRenewOnError="$1"
   _debug "_stopRenewOnError" "$_stopRenewOnError"
@@ -5619,7 +5647,7 @@ signcsr() {
     return 1
   fi
 
-  _initpath "$_csrsubj" "$_csrkeylength"
+  _initpath 1 "$_csrsubj" "$_csrkeylength"
   mkdir -p "$DOMAIN_PATH"
 
   _info "Copy csr to: $CSR_PATH"
@@ -5757,7 +5785,7 @@ deploy() {
     return 1
   fi
 
-  _initpath "$_d" "$_isEcc"
+  _initpath 1 "$_d" "$_isEcc"
   if [ ! -d "$DOMAIN_PATH" ]; then
     _err "The domain '$_d' is not a cert name. You must use the cert name to specify the cert to install."
     _err "Can not find path:'$DOMAIN_PATH'"
@@ -5785,7 +5813,7 @@ installcert() {
   _real_fullchain="$6"
   _isEcc="$7"
 
-  _initpath "$_main_domain" "$_isEcc"
+  _initpath 1 "$_main_domain" "$_isEcc"
   if [ ! -d "$DOMAIN_PATH" ]; then
     _err "The domain '$_main_domain' is not a cert name. You must use the cert name to specify the cert to install."
     _err "Can not find path:'$DOMAIN_PATH'"
@@ -6082,7 +6110,7 @@ revoke() {
   if [ -z "$_reason" ]; then
     _reason="0"
   fi
-  _initpath "$Le_Domain" "$_isEcc"
+  _initpath 1 "$Le_Domain" "$_isEcc"
   if [ ! -f "$DOMAIN_CONF" ]; then
     _err "$Le_Domain is not a issued domain, skip."
     return 1
@@ -6106,7 +6134,7 @@ revoke() {
     ACCOUNT_JSON_PATH=""
     CA_CONF=""
     _debug3 "initpath again."
-    _initpath "$Le_Domain" "$_isEcc"
+    _initpath 1 "$Le_Domain" "$_isEcc"
     _initAPI
   fi
 
@@ -6168,7 +6196,7 @@ remove() {
 
   _isEcc="$2"
 
-  _initpath "$Le_Domain" "$_isEcc"
+  _initpath 1 "$Le_Domain" "$_isEcc"
   _removed_conf="$DOMAIN_CONF.removed"
   if [ ! -f "$DOMAIN_CONF" ]; then
     if [ -f "$_removed_conf" ]; then
@@ -6193,7 +6221,7 @@ remove() {
 _deactivate() {
   _d_domain="$1"
   _d_type="$2"
-  _initpath "$_d_domain" "$_d_type"
+  _initpath 1 "$_d_domain" "$_d_type"
 
   . "$DOMAIN_CONF"
   _debug Le_API "$Le_API"
@@ -6208,7 +6236,7 @@ _deactivate() {
     ACCOUNT_JSON_PATH=""
     CA_CONF=""
     _debug3 "initpath again."
-    _initpath "$Le_Domain" "$_d_type"
+    _initpath 1 "$Le_Domain" "$_d_type"
     _initAPI
   fi
 
@@ -6441,7 +6469,7 @@ _setShebang() {
 #confighome
 _installalias() {
   _c_home="$1"
-  _initpath
+  _initpath 1
 
   _envfile="$LE_WORKING_DIR/$PROJECT_ENTRY.env"
   if [ "$_upgrading" ] && [ "$_upgrading" = "1" ]; then
@@ -6550,24 +6578,7 @@ install() {
   fi
 
   _info "Installing to $LE_WORKING_DIR"
-
-  if [ ! -d "$LE_WORKING_DIR" ]; then
-    if ! mkdir -p "$LE_WORKING_DIR"; then
-      _err "Can not create working dir: $LE_WORKING_DIR"
-      return 1
-    fi
-
-    chmod 700 "$LE_WORKING_DIR"
-  fi
-
-  if [ ! -d "$LE_CONFIG_HOME" ]; then
-    if ! mkdir -p "$LE_CONFIG_HOME"; then
-      _err "Can not create config dir: $LE_CONFIG_HOME"
-      return 1
-    fi
-
-    chmod 700 "$LE_CONFIG_HOME"
-  fi
+  _createdirs
 
   cp "$PROJECT_ENTRY" "$LE_WORKING_DIR/" && chmod +x "$LE_WORKING_DIR/$PROJECT_ENTRY"
 
@@ -6681,7 +6692,7 @@ _uninstallalias() {
 
 cron() {
   export _ACME_IN_CRON=1
-  _initpath
+  _initpath 1
   _info "$(__green "===Starting cron===")"
   if [ "$AUTO_UPGRADE" = "1" ]; then
     export LE_WORKING_DIR
@@ -6783,7 +6794,7 @@ setnotify() {
   _nlevel="$2"
   _nmode="$3"
 
-  _initpath
+  _initpath 1
 
   if [ -z "$_nhook$_nlevel$_nmode" ]; then
     _usage "Usage: $PROJECT_ENTRY --set-notify [--notify-hook <hookname>] [--notify-level <0|1|2|3>] [--notify-mode <0|1>]"
@@ -7026,7 +7037,7 @@ _getUpgradeHash() {
 
 upgrade() {
   if (
-    _initpath
+    _initpath 1
     [ -z "$FORCE" ] && [ "$(_getUpgradeHash)" = "$(_readaccountconf "UPGRADE_HASH")" ] && _info "Already uptodate!" && exit 0
     export LE_WORKING_DIR
     cd "$LE_WORKING_DIR"
@@ -7145,6 +7156,7 @@ _getCAShortName() {
 
 #set default ca to $ACME_DIRECTORY
 setdefaultca() {
+  _initpath 1
   if [ -z "$ACME_DIRECTORY" ]; then
     _err "Please give a --server parameter."
     return 1
@@ -7155,7 +7167,7 @@ setdefaultca() {
 
 #preferred-chain
 setdefaultchain() {
-  _initpath
+  _initpath 1
   _preferred_chain="$1"
   if [ -z "$_preferred_chain" ]; then
     _err "Please give a '--preferred-chain value' value."
@@ -7169,7 +7181,7 @@ setdefaultchain() {
 info() {
   _domain="$1"
   _ecc="$2"
-  _initpath
+  _initpath 1
   if [ -z "$_domain" ]; then
     _debug "Show global configs"
     echo "LE_WORKING_DIR=$LE_WORKING_DIR"
@@ -7178,7 +7190,7 @@ info() {
   else
     _debug "Show domain configs"
     (
-      _initpath "$_domain" "$_ecc"
+      _initpath 1 "$_domain" "$_ecc"
       echo "DOMAIN_CONF=$DOMAIN_CONF"
       for seg in $(cat $DOMAIN_CONF | cut -d = -f 1); do
         echo "$seg=$(_readdomainconf "$seg")"
